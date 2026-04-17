@@ -20,7 +20,9 @@
             margin: 0; padding: 0; width: 100%; height: 100%; 
             overflow: hidden; font-family: var(--font-main);
             background-color: transparent;
-            touch-action: none; /* Prevents browser gestures at the body level */
+            /* Prevents the 'bounce' effect on iOS/iPadOS */
+            touch-action: none; 
+            -webkit-overflow-scrolling: touch;
         }
         
         #bg-video {
@@ -46,12 +48,17 @@
         }
 
         #whiteboard-container { 
-            width: 60%; height: 75%; background: white; 
+            width: 62%; height: 75%; background: white; 
             border: 15px solid #5D4037; border-radius: 40px; 
             position: relative; box-shadow: 0 15px 50px rgba(0,0,0,0.6); 
         }
         
-        #canvas { width: 100%; height: 100%; touch-action: none; cursor: crosshair; display: block; border-radius: 25px; position: relative; z-index: 5; }
+        #canvas { 
+            width: 100%; height: 100%; 
+            touch-action: none; cursor: crosshair; 
+            display: block; border-radius: 25px; 
+            position: relative; z-index: 5; 
+        }
         
         #prompt-box {
             position: absolute; top: -115px; left: 50%; transform: translateX(-50%);
@@ -72,7 +79,7 @@
         #timer-display { position: absolute; top: 15px; right: 25px; font-size: 5rem; color: #D32F2F; font-weight: 700; z-index: 10; }
 
         #genie-side { 
-            width: 35%; height: 100%; 
+            width: 33%; height: 100%; 
             display: flex; flex-direction: column; align-items: center; justify-content: flex-end; 
             position: relative; padding-bottom: 20px;
         }
@@ -160,10 +167,10 @@
         let timerInterval;
         let currentWord = "";
 
-        // Fullscreen lock: Attempt to keep the orientation locked if supported
+        // Function to request fullscreen
         function toggleFullscreen() {
             if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(e => console.log(e));
+                document.documentElement.requestFullscreen().catch(e => console.error(e));
             } else {
                 if (document.exitFullscreen) document.exitFullscreen();
             }
@@ -171,7 +178,7 @@
 
         function initFullGame() {
             const doc = document.documentElement;
-            if (doc.requestFullscreen) doc.requestFullscreen().catch(e => console.log(e));
+            if (doc.requestFullscreen) doc.requestFullscreen().catch(e => console.error(e));
             document.getElementById('fs-overlay').style.display = 'none';
             document.getElementById('game-container').style.visibility = 'visible';
             initCanvas();
@@ -188,9 +195,10 @@
         }
 
         function drawTraceText(text) {
+            // Text fills roughly 45% of the whiteboard height
             const fontSize = Math.floor(canvas.height * 0.45);
             ctx.font = `bold ${fontSize}px 'Fredoka'`;
-            ctx.fillStyle = "rgba(230, 230, 230, 0.6)"; 
+            ctx.fillStyle = "rgba(225, 225, 225, 0.55)"; 
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillText(text.toLowerCase(), canvas.width / 2, canvas.height / 2);
@@ -240,7 +248,7 @@
                 timeLeft--;
                 display.innerText = timeLeft;
 
-                // Tick sound triggers at 8, 7, 6... down to 1
+                // Ticks at 8, 7, 6, 5, 4, 3, 2, 1
                 if (timeLeft <= 8 && timeLeft >= 1) {
                     document.getElementById('snd-tick').currentTime = 0;
                     document.getElementById('snd-tick').play();
@@ -271,6 +279,7 @@
             document.getElementById('timer-display').innerText = "";
         }
 
+        // --- DRAWING LOGIC WITH FULLSCREEN PROTECTION ---
         function getPos(e) {
             const rect = canvas.getBoundingClientRect();
             let clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -284,13 +293,12 @@
             ctx.lineTo(pos.x, pos.y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
         }
 
-        // --- CRITICAL FIX FOR FULLSCREEN ON TOUCH DEVICES ---
         canvas.addEventListener('mousedown', (e) => { painting = true; drawMove(e); });
         canvas.addEventListener('mousemove', drawMove);
         window.addEventListener('mouseup', () => { painting = false; ctx.beginPath(); });
 
+        // Touch event handlers with passive: false to prevent gesture interference
         canvas.addEventListener('touchstart', (e) => { 
-            // This stops the browser from noticing the touch and showing address bars
             if (e.target == canvas) e.preventDefault(); 
             painting = true; 
             drawMove(e); 
@@ -306,6 +314,11 @@
             painting = false; 
             ctx.beginPath(); 
         }, {passive: false});
+
+        // Prevention of accidental swipe-to-navigate or refresh on mobile body
+        document.body.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+        }, { passive: false });
         
         window.addEventListener('resize', initCanvas);
     </script>
