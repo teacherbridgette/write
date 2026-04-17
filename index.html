@@ -19,7 +19,8 @@
         body, html { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
             overflow: hidden; font-family: var(--font-main);
-            background-color: transparent; 
+            background-color: transparent;
+            touch-action: none; /* Prevents browser gestures at the body level */
         }
         
         #bg-video {
@@ -59,13 +60,13 @@
             text-align: center; box-shadow: 0 8px 0px #F9A825;
             display: none; opacity: 0; transition: opacity 0.5s;
         }
-        #instruction { font-size: 3rem; margin: 0; color: #333; font-weight: 700; font-variant: small-caps; }
+        #instruction { font-size: 3rem; margin: 0; color: #333; font-weight: 700; }
 
         #big-reveal {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0);
             font-size: 8rem; color: #FFEB3B; text-shadow: 0 0 30px rgba(0,0,0,0.8), 6px 6px 0px #E65100;
             z-index: 200; transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            pointer-events: none; text-align: center; font-weight: 700; font-variant: small-caps;
+            pointer-events: none; text-align: center; font-weight: 700;
         }
 
         #timer-display { position: absolute; top: 15px; right: 25px; font-size: 5rem; color: #D32F2F; font-weight: 700; z-index: 10; }
@@ -80,12 +81,12 @@
         #lamp-img { width: 80%; max-width: 450px; height: auto; position: absolute; bottom: 0px; left: 50%; transform: translateX(-50%); z-index: 2; }
 
         #controls { position: absolute; bottom: -115px; width: 100%; display: flex; justify-content: center; gap: 15px; }
-        .btn { padding: 15px 30px; font-size: 1.8rem; border-radius: 50px; border: 4px solid white; cursor: pointer; color: white; font-weight: 700; box-shadow: 0 4px 0 rgba(0,0,0,0.3); font-variant: small-caps; }
+        .btn { padding: 15px 30px; font-size: 1.8rem; border-radius: 50px; border: 4px solid white; cursor: pointer; color: white; font-weight: 700; box-shadow: 0 4px 0 rgba(0,0,0,0.3); }
         
-        #start-btn-real { margin-top: 20px; padding: 20px 80px; font-size: 3.5rem; background: #FF6D00; color: white; border: 8px solid white; border-radius: 70px; cursor: pointer; box-shadow: 0 10px 0px #BF360C; z-index: 3; font-variant: small-caps; }
+        #start-btn-real { margin-top: 20px; padding: 20px 80px; font-size: 3.5rem; background: #FF6D00; color: white; border: 8px solid white; border-radius: 70px; cursor: pointer; box-shadow: 0 10px 0px #BF360C; z-index: 3; }
 
         #fs-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 9999; display: flex; justify-content: center; align-items: center; }
-        #fs-btn { padding: 40px 80px; font-size: 5rem; background: #FF6D00; color: white; border: 12px solid white; border-radius: 100px; font-weight: 700; cursor: pointer; animation: bouncy 1.5s infinite alternate; font-variant: small-caps; }
+        #fs-btn { padding: 40px 80px; font-size: 5rem; background: #FF6D00; color: white; border: 12px solid white; border-radius: 100px; font-weight: 700; cursor: pointer; animation: bouncy 1.5s infinite alternate; }
 
         #video-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
         #reward-video { width: 100%; height: 85%; object-fit: contain; }
@@ -159,9 +160,10 @@
         let timerInterval;
         let currentWord = "";
 
+        // Fullscreen lock: Attempt to keep the orientation locked if supported
         function toggleFullscreen() {
             if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen();
+                document.documentElement.requestFullscreen().catch(e => console.log(e));
             } else {
                 if (document.exitFullscreen) document.exitFullscreen();
             }
@@ -169,7 +171,7 @@
 
         function initFullGame() {
             const doc = document.documentElement;
-            if (doc.requestFullscreen) doc.requestFullscreen();
+            if (doc.requestFullscreen) doc.requestFullscreen().catch(e => console.log(e));
             document.getElementById('fs-overlay').style.display = 'none';
             document.getElementById('game-container').style.visibility = 'visible';
             initCanvas();
@@ -179,21 +181,18 @@
             const rect = canvas.getBoundingClientRect();
             canvas.width = rect.width;
             canvas.height = rect.height;
-            ctx.lineWidth = 16; 
+            ctx.lineWidth = 18; 
             ctx.lineCap = 'round'; ctx.lineJoin = 'round'; 
             ctx.strokeStyle = '#2C3E50';
             if(currentWord) drawTraceText(currentWord);
         }
 
         function drawTraceText(text) {
-            // "Occupying the whiteboard" - using a massive dynamic font size
             const fontSize = Math.floor(canvas.height * 0.45);
             ctx.font = `bold ${fontSize}px 'Fredoka'`;
-            ctx.fillStyle = "rgba(230, 230, 230, 0.5)"; 
+            ctx.fillStyle = "rgba(230, 230, 230, 0.6)"; 
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            
-            // All small letters as requested
             ctx.fillText(text.toLowerCase(), canvas.width / 2, canvas.height / 2);
         }
 
@@ -222,7 +221,7 @@
                 
                 setTimeout(() => {
                     br.style.transform = "translate(-50%, -50%) scale(0)";
-                    document.getElementById('instruction').innerHTML = `Trace the word: ${selected.t.toLowerCase()}`;
+                    document.getElementById('instruction').innerHTML = `Trace: ${selected.t.toLowerCase()}`;
                     document.getElementById('prompt-box').style.display = 'block';
                     document.getElementById('prompt-box').style.opacity = '1';
                     
@@ -233,13 +232,20 @@
         }
 
         function startTimer() {
-            let timeLeft = 15; 
+            let timeLeft = 10; 
             const display = document.getElementById('timer-display');
             display.innerText = timeLeft;
+            
             timerInterval = setInterval(() => {
                 timeLeft--;
                 display.innerText = timeLeft;
-                if (timeLeft <= 3 && timeLeft > 0) document.getElementById('snd-tick').play();
+
+                // Tick sound triggers at 8, 7, 6... down to 1
+                if (timeLeft <= 8 && timeLeft >= 1) {
+                    document.getElementById('snd-tick').currentTime = 0;
+                    document.getElementById('snd-tick').play();
+                }
+
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
                     document.getElementById('snd-timesup').play();
@@ -250,7 +256,9 @@
 
         function showReward() {
             document.getElementById('video-overlay').style.display = 'flex';
-            document.getElementById('reward-video').play();
+            const vid = document.getElementById('reward-video');
+            vid.currentTime = 0;
+            vid.play();
         }
 
         function softReset() {
@@ -276,12 +284,28 @@
             ctx.lineTo(pos.x, pos.y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
         }
 
+        // --- CRITICAL FIX FOR FULLSCREEN ON TOUCH DEVICES ---
         canvas.addEventListener('mousedown', (e) => { painting = true; drawMove(e); });
         canvas.addEventListener('mousemove', drawMove);
         window.addEventListener('mouseup', () => { painting = false; ctx.beginPath(); });
-        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); painting = true; drawMove(e); }, {passive: false});
-        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); drawMove(e); }, {passive: false});
-        canvas.addEventListener('touchend', () => { painting = false; ctx.beginPath(); });
+
+        canvas.addEventListener('touchstart', (e) => { 
+            // This stops the browser from noticing the touch and showing address bars
+            if (e.target == canvas) e.preventDefault(); 
+            painting = true; 
+            drawMove(e); 
+        }, {passive: false});
+
+        canvas.addEventListener('touchmove', (e) => { 
+            if (e.target == canvas) e.preventDefault(); 
+            drawMove(e); 
+        }, {passive: false});
+
+        canvas.addEventListener('touchend', (e) => { 
+            if (e.target == canvas) e.preventDefault(); 
+            painting = false; 
+            ctx.beginPath(); 
+        }, {passive: false});
         
         window.addEventListener('resize', initCanvas);
     </script>
