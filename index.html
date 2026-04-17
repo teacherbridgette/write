@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Genie Action Challenge</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root { 
+            --font-main: 'Fredoka', sans-serif; 
+            --crayon-black: #2C3E50;
+            --crayon-red: #FF5252;
+            --crayon-green: #4CAF50;
+            --eraser-pink: #FF80AB;
+        }
+
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            overflow: hidden; font-family: var(--font-main);
+            background-color: transparent; 
+        }
+        
+        #bg-video {
+            position: fixed; top: 50%; left: 50%;
+            min-width: 100%; min-height: 100%;
+            width: auto; height: auto; z-index: -1;
+            transform: translate(-50%, -50%);
+            object-fit: cover;
+        }
+
+        #fs-widget {
+            position: fixed; top: 20px; left: 20px; z-index: 2000;
+            background: rgba(255, 255, 255, 0.2); border: 2px solid white;
+            border-radius: 50%; width: 50px; height: 50px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 1.5rem; backdrop-filter: blur(5px);
+        }
+
+        #game-container { 
+            display: flex; width: 100vw; height: 100vh; 
+            align-items: center; justify-content: space-between;
+            padding: 0 2%; box-sizing: border-box; visibility: hidden; 
+        }
+
+        #whiteboard-container { 
+            width: 60%; height: 75%; background: white; 
+            border: 15px solid #5D4037; border-radius: 40px; 
+            position: relative; box-shadow: 0 15px 50px rgba(0,0,0,0.6); 
+        }
+        
+        #canvas { width: 100%; height: 100%; touch-action: none; cursor: crosshair; display: block; border-radius: 25px; position: relative; z-index: 5; }
+        
+        #prompt-box {
+            position: absolute; top: -115px; left: 50%; transform: translateX(-50%);
+            background: #FFF9C4; border: 6px solid #FBC02D;
+            padding: 10px 40px; border-radius: 60px; min-width: 350px;
+            text-align: center; box-shadow: 0 8px 0px #F9A825;
+            display: none; opacity: 0; transition: opacity 0.5s;
+        }
+        #instruction { font-size: 3rem; margin: 0; color: #333; font-weight: 700; font-variant: small-caps; }
+
+        #big-reveal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0);
+            font-size: 8rem; color: #FFEB3B; text-shadow: 0 0 30px rgba(0,0,0,0.8), 6px 6px 0px #E65100;
+            z-index: 200; transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none; text-align: center; font-weight: 700; font-variant: small-caps;
+        }
+
+        #timer-display { position: absolute; top: 15px; right: 25px; font-size: 5rem; color: #D32F2F; font-weight: 700; z-index: 10; }
+
+        #genie-side { 
+            width: 35%; height: 100%; 
+            display: flex; flex-direction: column; align-items: center; justify-content: flex-end; 
+            position: relative; padding-bottom: 20px;
+        }
+        .genie-box { position: relative; width: 100%; height: 90%; display: flex; align-items: flex-end; justify-content: center; }
+        #genie-img { width: 100%; max-width: 550px; height: auto; position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 1; }
+        #lamp-img { width: 80%; max-width: 450px; height: auto; position: absolute; bottom: 0px; left: 50%; transform: translateX(-50%); z-index: 2; }
+
+        #controls { position: absolute; bottom: -115px; width: 100%; display: flex; justify-content: center; gap: 15px; }
+        .btn { padding: 15px 30px; font-size: 1.8rem; border-radius: 50px; border: 4px solid white; cursor: pointer; color: white; font-weight: 700; box-shadow: 0 4px 0 rgba(0,0,0,0.3); font-variant: small-caps; }
+        
+        #start-btn-real { margin-top: 20px; padding: 20px 80px; font-size: 3.5rem; background: #FF6D00; color: white; border: 8px solid white; border-radius: 70px; cursor: pointer; box-shadow: 0 10px 0px #BF360C; z-index: 3; font-variant: small-caps; }
+
+        #fs-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 9999; display: flex; justify-content: center; align-items: center; }
+        #fs-btn { padding: 40px 80px; font-size: 5rem; background: #FF6D00; color: white; border: 12px solid white; border-radius: 100px; font-weight: 700; cursor: pointer; animation: bouncy 1.5s infinite alternate; font-variant: small-caps; }
+
+        #video-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
+        #reward-video { width: 100%; height: 85%; object-fit: contain; }
+
+        @keyframes shake {
+            0% { transform: translate(3px, 3px) rotate(0deg) translateX(-50%); }
+            25% { transform: translate(-6px, 0px) rotate(-5deg) translateX(-50%); }
+            50% { transform: translate(6px, 3px) rotate(5deg) translateX(-50%); }
+            100% { transform: translate(3px, -3px) rotate(-3deg) translateX(-50%); }
+        }
+        @keyframes bouncy { from { transform: scale(1); } to { transform: scale(1.1); } }
+        .shake { animation: shake 0.4s infinite; }
+    </style>
+</head>
+<body>
+
+    <div id="fs-widget" onclick="toggleFullscreen()">⛶</div>
+
+    <video autoplay muted loop playsinline id="bg-video">
+        <source src="please.mp4" type="video/mp4">
+    </video>
+
+    <div id="fs-overlay">
+        <button id="fs-btn" onclick="initFullGame()">PLAY!</button>
+    </div>
+
+    <div id="big-reveal"></div>
+
+    <div id="video-overlay">
+        <video id="reward-video" playsinline><source src="goodjob.mp4" type="video/mp4"></video>
+        <button class="btn" style="margin-top:20px; background: #FF6D00; width: 400px; font-size: 3rem;" onclick="softReset()">TRY AGAIN</button>
+    </div>
+
+    <div id="game-container">
+        <div id="whiteboard-container">
+            <div id="prompt-box"><p id="instruction"></p></div>
+            <div id="timer-display"></div>
+            <canvas id="canvas"></canvas>
+            <div id="controls">
+                <button class="btn" style="background:var(--crayon-black)" onclick="setColor('#2C3E50')">Black</button>
+                <button class="btn" style="background:var(--crayon-red)" onclick="setColor('#FF5252')">Red</button>
+                <button class="btn" style="background:var(--crayon-green)" onclick="setColor('#4CAF50')">Green</button>
+                <button class="btn" style="background:var(--eraser-pink)" onclick="clearCanvas()">Eraser 🧽</button>
+            </div>
+        </div>
+
+        <div id="genie-side">
+            <div class="genie-box">
+                <img src="genie.gif" id="genie-img">
+                <img src="lamp.gif" id="lamp-img">
+            </div>
+            <button id="start-btn-real" onclick="startGame()">START</button>
+        </div>
+    </div>
+
+    <audio id="snd-tick" src="tick.mp3" preload="auto"></audio>
+    <audio id="snd-timesup" src="timesup.mp3" preload="auto"></audio>
+    <audio id="snd-shimmer" src="shimmer.mp3" preload="auto"></audio>
+    <audio id="snd-reveal" src="reveal.mp3" preload="auto"></audio>
+
+    <script>
+        const words = [
+            { t: "draw", e: "✏️" }, { t: "write", e: "📝" }, { t: "sing", e: "🎤" },
+            { t: "dance", e: "💃" }, { t: "read", e: "📖" }, { t: "jump", e: "👟" },
+            { t: "swim", e: "🏊" }
+        ];
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let painting = false;
+        let timerInterval;
+        let currentWord = "";
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+
+        function initFullGame() {
+            const doc = document.documentElement;
+            if (doc.requestFullscreen) doc.requestFullscreen();
+            document.getElementById('fs-overlay').style.display = 'none';
+            document.getElementById('game-container').style.visibility = 'visible';
+            initCanvas();
+        }
+
+        function initCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            ctx.lineWidth = 16; 
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round'; 
+            ctx.strokeStyle = '#2C3E50';
+            if(currentWord) drawTraceText(currentWord);
+        }
+
+        function drawTraceText(text) {
+            // "Occupying the whiteboard" - using a massive dynamic font size
+            const fontSize = Math.floor(canvas.height * 0.45);
+            ctx.font = `bold ${fontSize}px 'Fredoka'`;
+            ctx.fillStyle = "rgba(230, 230, 230, 0.5)"; 
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            
+            // All small letters as requested
+            ctx.fillText(text.toLowerCase(), canvas.width / 2, canvas.height / 2);
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if(currentWord) drawTraceText(currentWord);
+        }
+
+        function setColor(c) { ctx.strokeStyle = c; }
+
+        function startGame() {
+            document.getElementById('start-btn-real').style.visibility = "hidden";
+            document.getElementById('snd-shimmer').play();
+            document.getElementById('lamp-img').classList.add('shake');
+            document.getElementById('genie-img').src = "genie.gif?t=" + new Date().getTime();
+
+            setTimeout(() => {
+                document.getElementById('lamp-img').classList.remove('shake');
+                const selected = words[Math.floor(Math.random() * words.length)];
+                currentWord = selected.t;
+                
+                document.getElementById('snd-reveal').play();
+                const br = document.getElementById('big-reveal');
+                br.innerHTML = `${selected.t.toLowerCase()}<br>${selected.e}`;
+                br.style.transform = "translate(-50%, -50%) scale(1)";
+                
+                setTimeout(() => {
+                    br.style.transform = "translate(-50%, -50%) scale(0)";
+                    document.getElementById('instruction').innerHTML = `Trace the word: ${selected.t.toLowerCase()}`;
+                    document.getElementById('prompt-box').style.display = 'block';
+                    document.getElementById('prompt-box').style.opacity = '1';
+                    
+                    clearCanvas();
+                    startTimer();
+                }, 1800);
+            }, 2000);
+        }
+
+        function startTimer() {
+            let timeLeft = 15; 
+            const display = document.getElementById('timer-display');
+            display.innerText = timeLeft;
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                display.innerText = timeLeft;
+                if (timeLeft <= 3 && timeLeft > 0) document.getElementById('snd-tick').play();
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    document.getElementById('snd-timesup').play();
+                    showReward();
+                }
+            }, 1000);
+        }
+
+        function showReward() {
+            document.getElementById('video-overlay').style.display = 'flex';
+            document.getElementById('reward-video').play();
+        }
+
+        function softReset() {
+            document.getElementById('video-overlay').style.display = 'none';
+            document.getElementById('reward-video').pause();
+            currentWord = "";
+            clearCanvas();
+            document.getElementById('prompt-box').style.display = 'none';
+            document.getElementById('start-btn-real').style.visibility = "visible";
+            document.getElementById('timer-display').innerText = "";
+        }
+
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+        
+        function drawMove(e) {
+            if (!painting) return;
+            const pos = getPos(e);
+            ctx.lineTo(pos.x, pos.y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
+        }
+
+        canvas.addEventListener('mousedown', (e) => { painting = true; drawMove(e); });
+        canvas.addEventListener('mousemove', drawMove);
+        window.addEventListener('mouseup', () => { painting = false; ctx.beginPath(); });
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); painting = true; drawMove(e); }, {passive: false});
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); drawMove(e); }, {passive: false});
+        canvas.addEventListener('touchend', () => { painting = false; ctx.beginPath(); });
+        
+        window.addEventListener('resize', initCanvas);
+    </script>
+</body>
+</html>
